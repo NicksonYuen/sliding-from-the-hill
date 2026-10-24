@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>跳跳滑梯 Hop and Slide</title>
+<meta name="theme-color" content="#F4F7FB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="跳跳滑梯">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: a start screen, then one big picture (based on YHT's drawing). Same calm light theme as the other games. */
+:root{
+  --bg:#F4F7FB;
+  --surface:#FFFFFF;
+  --ink:#10213A;
+  --muted:#5A6A80;
+  --line:#C8D2E0;
+  --next:#FFC93C;
+  --good:#1E9A53;
+  --bad:#D2433F;
+  --font:"Atkinson Hyperlegible","PingFang HK","Heiti TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;margin:0;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overflow:hidden;
+  overscroll-behavior:none;-webkit-touch-callout:none}
+button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointer}
+button:focus-visible{outline:4px solid var(--ink);outline-offset:3px}
+.screen{height:100%;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column}
+
+/* ---------- Home ---------- */
+#home{align-items:center;justify-content:center;gap:28px;overflow-y:auto}
+.brand{display:flex;flex-direction:column;align-items:center;gap:10px}
+.brand h1{margin:0;font-size:clamp(2.4rem,7vw,3.6rem);letter-spacing:.04em}
+.brand p{margin:0;color:var(--muted);font-size:1.15rem}
+.logo{width:180px;height:auto}
+.start{border:0;background:var(--ink);color:#fff;font-size:2rem;font-weight:700;border-radius:999px;padding:18px 64px;box-shadow:0 6px 0 #04101F}
+.start:active{transform:translateY(4px);box-shadow:0 2px 0 #04101F}
+.how{margin:0;color:var(--muted);font-size:1.1rem;text-align:center;max-width:460px;line-height:1.5}
+.ghost{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 16px;font-size:1rem}
+.voice{margin:0;font-size:.95rem;color:var(--muted);text-align:center;max-width:520px;line-height:1.45}
+.voice.warn{color:var(--bad)}
+
+/* ---------- Play ---------- */
+#play{gap:12px;align-items:center;position:relative}
+.bar{width:100%;max-width:1100px;display:flex;justify-content:space-between;align-items:center}
+.hold{position:relative;overflow:hidden;border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 14px;font-size:.95rem;color:var(--muted);display:flex;align-items:center;gap:8px}
+.hold i{position:absolute;left:0;bottom:0;height:5px;width:0;background:var(--ink)}
+.hold.go i{width:100%;transition:width 1.5s linear}
+.listen{border:3px solid var(--ink);background:var(--surface);border-radius:999px;padding:10px 22px 10px 16px;font-size:1.25rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.listen svg{width:30px;height:30px}
+.listen:active{background:var(--next)}
+/* The picture. touch-action:none so a finger moves the little girl instead of scrolling the page. */
+.board{flex:1;width:100%;max-width:1100px;min-height:0;background:#DDEEFF;border:3px solid var(--line);border-radius:24px;position:relative;overflow:hidden}
+#scene{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;overflow:hidden}
+
+/* arrows: the ones in front of her blink one after another, the rest of the path is faint */
+.arrow{fill:#FF8A1F;stroke:#fff;stroke-width:2.5;stroke-linejoin:round}
+.arrow.far{fill:#FFFFFF;stroke:#FF8A1F;opacity:.75}
+.arrow.near{animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:.35}40%{opacity:1}}
+.ring{fill:none;stroke:#FF8A1F;stroke-width:6;animation:ring 1.2s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes ring{from{transform:scale(.8);opacity:1}to{transform:scale(1.35);opacity:0}}
+.girl .body{transform-box:view-box}
+.girl.held .lift{transform:translateY(-6px)}
+
+.cheer{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:6}
+.cheer b{font-size:clamp(3rem,12vw,7rem);color:var(--ink);background:var(--next);padding:.15em .5em;border-radius:.35em;
+  border:5px solid var(--ink);animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.3);opacity:0}}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+@media (prefers-reduced-motion:reduce){ .arrow.near,.ring{animation:none} }
+</style>
+</head>
+<body>
+<section class="screen" id="home">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 180 120" aria-hidden="true">
+      <path d="M30 20 C22 60 14 85 8 112" fill="none" stroke="#FFC93C" stroke-width="14" stroke-linecap="round"/>
+      <path d="M8 112 Q60 40 172 112Z" fill="#7CC86B"/>
+      <ellipse cx="70" cy="92" rx="16" ry="6" fill="#9AA6B2"/><ellipse cx="112" cy="80" rx="16" ry="6" fill="#9AA6B2"/><ellipse cx="150" cy="100" rx="16" ry="6" fill="#9AA6B2"/>
+      <path d="M84 84 l10 -4 -3 8z M126 86 l10 6 -9 3z" fill="#FF8A1F"/>
+      <circle cx="112" cy="50" r="11" fill="#F6D2B5"/><path d="M100 46 q2 -14 12 -13 q10 -1 12 13 q-3 -6 -12 -6 q-9 0 -12 6z" fill="#E8B830"/>
+      <rect x="104" y="61" width="16" height="15" rx="4" fill="#8FA8E8"/>
+    </svg>
+    <h1>跳跳滑梯</h1>
+    <p>Hop and Slide</p>
+  </div>
+  <p class="how">撳住個人仔，跟住箭嘴跳上山，再由滑梯滑落嚟。</p>
+  <button class="start" id="startBtn" type="button">開始</button>
+  <button class="ghost" id="testBtn" type="button">試聲 Test sound</button>
+  <p class="voice" id="voiceStatus">正在檢查廣東話聲音…</p>
+</section>
+
+<section class="screen" id="play" hidden>
+  <div class="bar">
+    <button class="hold" id="holdBtn" type="button" aria-label="Hold to go back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      按住返回<i></i>
+    </button>
+    <button class="listen" id="listenBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+      再講一次
+    </button>
+  </div>
+  <div class="board" id="boardWrap">
+    <!-- The picture, redrawn in colour from YHT's pencil drawing: a long slide on the left, a big bumpy hill, waves at the bottom, wind curls in the sky, and the little girl with golden hair. -->
+    <svg id="scene" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid meet" aria-label="跳跳滑梯">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BFE1FF"/><stop offset="1" stop-color="#EAF6FF"/></linearGradient>
+        <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9AD97F"/><stop offset="1" stop-color="#5FB45A"/></linearGradient>
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6EC3F0"/><stop offset="1" stop-color="#2F86C9"/></linearGradient>
+        <linearGradient id="chute" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFB020"/><stop offset=".5" stop-color="#FFD24D"/><stop offset="1" stop-color="#FFB020"/></linearGradient>
+      </defs>
+      <!-- sky (drawn wider than the picture so a wide screen has no empty edges) -->
+      <rect x="-600" y="-400" width="1800" height="1600" fill="url(#sky)"/>
+      <!-- wind curls (top right) and two birds (top left), like the squiggles in the drawing -->
+      <g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".9">
+        <path d="M330 70 q25 -22 50 0 t50 0 t50 0 t50 0"/>
+        <path d="M380 120 q22 -18 44 0 t44 0 t44 0"/>
+        <path d="M440 170 q20 -16 40 0 t40 0 t40 0"/>
+      </g>
+      <g fill="none" stroke="#5A6A80" stroke-width="4" stroke-linecap="round">
+        <path d="M40 60 q12 -14 22 0 q10 -14 22 0"/>
+        <path d="M230 90 q9 -11 17 0 q8 -11 17 0"/>
+      </g>
+      <!-- sea at the bottom -->
+      <rect x="-600" y="712" width="1800" height="500" fill="url(#sea)"/>
+      <!-- the big bumpy hill -->
+      <path d="M140 150 q30 -40 70 -10 q30 -40 70 0 q35 -30 70 10 q40 -20 65 25 q40 -5 55 40 q30 5 35 45 L760 260 L760 712 L60 712 Q90 430 140 150Z" fill="url(#hill)"/>
+      <!-- the rows of little bumps on the hill (her scalloped lines) -->
+      <g fill="none" stroke="#3F8F45" stroke-width="4" stroke-linecap="round" opacity=".55">
+        <path d="M150 260 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0"/>
+        <path d="M120 420 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0"/>
+        <path d="M100 600 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0 q20 -18 40 0"/>
+      </g>
+      <!-- wave bumps along the shore -->
+      <g fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity=".85">
+        <path d="M-40 745 q25 -16 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0"/>
+        <path d="M-15 780 q25 -16 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0"/>
+      </g>
+      <!-- the long slide down the left side -->
+      <g id="slideArt">
+        <path d="M168 132 C140 330 90 520 36 706" fill="none" stroke="#C97A12" stroke-width="40" stroke-linecap="round"/>
+        <path d="M168 132 C140 330 90 520 36 706" fill="none" stroke="url(#chute)" stroke-width="30" stroke-linecap="round"/>
+        <path d="M168 132 C140 330 90 520 36 706" fill="none" stroke="#FFF3C4" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 22" opacity=".9"/>
+        <!-- little platform at the top of the slide -->
+        <rect x="150" y="122" width="56" height="16" rx="6" fill="#D2433F"/>
+      </g>
+      <!-- the path the girl slides down (invisible guide) -->
+      <path id="slidePath" d="M172 122 C144 330 94 520 40 700 Q46 712 90 708" fill="none" stroke="none"/>
+      <g id="arrows"></g>
+      <g id="stones"></g>
+      <circle id="ring" class="ring" r="40" cx="0" cy="0"/>
+      <!-- the little girl. Her feet are at (0,0). Golden curly hair, round face, arms up, like YHT drew her. -->
+      <g id="girl" class="girl">
+        <g class="lift">
+          <ellipse cx="0" cy="2" rx="26" ry="6" fill="#10213A" opacity=".18"/>
+          <g stroke="#10213A" stroke-width="3" stroke-linecap="round" fill="none">
+            <path d="M-8 -30 L-10 -3"/><path d="M8 -30 L10 -3"/>
+            <path d="M-19 -62 L-40 -84"/><path d="M19 -62 L40 -84"/>
+          </g>
+          <ellipse cx="-12" cy="-3" rx="8" ry="4.5" fill="#D2433F"/><ellipse cx="12" cy="-3" rx="8" ry="4.5" fill="#D2433F"/>
+          <circle cx="-42" cy="-86" r="5.5" fill="#F6D2B5" stroke="#10213A" stroke-width="2"/><circle cx="42" cy="-86" r="5.5" fill="#F6D2B5" stroke="#10213A" stroke-width="2"/>
+          <path d="M-20 -70 h40 l6 42 h-52z" fill="#8FA8E8" stroke="#10213A" stroke-width="3" stroke-linejoin="round"/>
+          <circle cx="0" cy="-92" r="22" fill="#F6D2B5" stroke="#10213A" stroke-width="3"/>
+          <!-- golden curly hair -->
+          <g fill="#E8B830" stroke="#B8860B" stroke-width="2">
+            <circle cx="-20" cy="-102" r="8"/><circle cx="-12" cy="-112" r="8"/><circle cx="0" cy="-116" r="8"/>
+            <circle cx="12" cy="-112" r="8"/><circle cx="20" cy="-102" r="8"/><circle cx="-24" cy="-90" r="6"/><circle cx="24" cy="-90" r="6"/>
+          </g>
+          <circle cx="-8" cy="-92" r="4.5" fill="#E8B830"/><circle cx="8" cy="-92" r="4.5" fill="#E8B830"/>
+          <circle cx="-8" cy="-92" r="2.6" fill="#10213A"/><circle cx="8" cy="-92" r="2.6" fill="#10213A"/>
+          <circle cx="-15" cy="-83" r="3.5" fill="#FF9AA8" opacity=".7"/><circle cx="15" cy="-83" r="3.5" fill="#FF9AA8" opacity=".7"/>
+          <path d="M-6 -81 q6 6 12 0" fill="none" stroke="#10213A" stroke-width="2.5" stroke-linecap="round"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <div class="cheer" id="cheer" hidden><b>贏咗！</b></div>
+</section>
+<canvas id="fx" hidden></canvas>
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ---------- settings ---------- */
+const SAY_START='撳住個人仔，跟住箭嘴，一級一級跳上山。';
+const SAY_HINT='撳住個人仔，拖去箭嘴指住嗰嚿石頭。';
+const SAY_TOP='好嘢！到咗山頂喇，滑落去囉！';
+const SAY_WIN='你做得好好呀！你贏咗呢一關！';
+const IDLE_MS=10000;      /* say the hint again after 10 seconds with no move */
+const WIN_MS=4000;        /* the celebration lasts at least this long, and always until the praise has been spoken */
+const REACH=60;           /* how close (in picture units) the finger must get to the next stone */
+const GRAB=90;            /* how close to the girl a finger must press to pick her up */
+
+/* Stepping stones, in order. Picture is 600 wide x 800 tall.
+   1) along the bottom to the left, 2) up to the right, 3) up to the left to the top of the slide. */
+const STONES=[
+  [510,668],[420,676],[330,680],[240,676],[150,662],
+  [205,592],[285,550],[365,508],[445,466],[515,420],
+  [450,360],[380,312],[310,268],[240,226],[178,124]
+];
+
+/* ---------- state ---------- */
+let at=0,busy=false,dragId=null,finger=null,idleTimer=null,current='home',wakeLock=null,roundId=0,hopQ=0;
+let gx=STONES[0][0],gy=STONES[0][1];
+
+/* ---------- audio effects ---------- */
+let ac=null;
+function audio(){
+  if(!ac){const C=window.AudioContext||window.webkitAudioContext;if(C)ac=new C()}
+  if(ac&&ac.state==='suspended')ac.resume();
+  return ac;
+}
+function tone(f,start,dur,type,vol,endF){
+  const a=audio();if(!a)return;
+  const t=a.currentTime+start,o=a.createOscillator(),g=a.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+  if(endF)o.frequency.exponentialRampToValueAtTime(endF,t+dur);
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol||0.25,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+0.05);
+}
+const sfx={
+  hop(n){const f=330+n*22;tone(f,0,.22,'triangle',.3,f*2)},
+  slide(){tone(900,0,2,'sine',.18,180)},
+  win(){[523,659,784,1047,1319].forEach((f,i)=>tone(f,i*.11,.45,'triangle',.28))},
+  pop(){tone(220,0,.14,'sine',.12,90)},
+  grab(){tone(660,0,.08,'sine',.15)}
+};
+
+/* ---------- Cantonese speech ---------- */
+let voice=null,speechId=0;
+const hasTTS='speechSynthesis' in window;
+function pickVoice(){
+  if(!hasTTS)return statusVoice();
+  const vs=speechSynthesis.getVoices();
+  voice=vs.find(v=>/zh[-_]HK/i.test(v.lang))||vs.find(v=>/yue/i.test(v.lang))||vs.find(v=>/Sinji|Cantonese|粵|廣東/i.test(v.name))||null;
+  statusVoice(vs.length>0);
+}
+function statusVoice(loaded){
+  const el=$('voiceStatus');
+  if(!hasTTS){el.textContent='呢部機唔支援語音朗讀，遊戲只會有音效。';el.className='voice warn';return}
+  if(voice){el.textContent='廣東話聲音：'+voice.name+'。開始前可以撳「試聲」聽吓。';el.className='voice';return}
+  if(loaded===false)return;
+  el.innerHTML='搵唔到廣東話聲音。iPad：設定 › 輔助使用 › 朗讀內容 › 聲音 › 中文（香港），下載「Sinji」。<br>No Cantonese voice found: Settings › Accessibility › Spoken Content › Voices › Chinese (Hong Kong).';
+  el.className='voice warn';
+}
+if(hasTTS){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;setTimeout(pickVoice,800)}
+function stopSpeech(){speechId++;if(hasTTS)speechSynthesis.cancel()}
+function say(text,onend){
+  const id=++speechId;
+  let done=false;
+  const fin=()=>{if(done||id!==speechId)return;done=true;onend&&onend()};
+  if(!hasTTS){setTimeout(fin,600);return}
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='zh-HK';if(voice)u.voice=voice;u.rate=.85;u.pitch=1.05;
+  u.onend=fin;u.onerror=fin;
+  setTimeout(()=>{if(id===speechId)speechSynthesis.speak(u)},60);
+  setTimeout(fin,2000+text.length*420); /* safety net if the browser never fires onend */
+}
+
+/* ---------- drawing the stones and arrows ---------- */
+const NS='http://www.w3.org/2000/svg';
+const svg=$('scene'),girl=$('girl'),ring=$('ring');
+function el(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e}
+function drawStones(){
+  const g=$('stones');g.innerHTML='';
+  STONES.forEach(([x,y],i)=>{
+    if(i===STONES.length-1)return; /* the last one is the slide's platform */
+    const s=el('g',{'data-i':i},g);
+    el('ellipse',{cx:x,cy:y+4,rx:36,ry:13,fill:'#6F7B86'},s);
+    el('ellipse',{cx:x,cy:y,rx:34,ry:12,fill:i<at?'#FFD24D':'#B4BEC8',class:'top'},s);
+    el('ellipse',{cx:x-10,cy:y-3,rx:10,ry:3.5,fill:'#fff',opacity:.55},s);
+  });
+}
+/* three little arrows between each stone and the next; the ones just in front of her blink */
+function drawArrows(){
+  const g=$('arrows');g.innerHTML='';
+  for(let i=at;i<STONES.length-1;i++){
+    const [x1,y1]=STONES[i],[x2,y2]=STONES[i+1];
+    const ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI,near=i===at;
+    for(let k=1;k<=3;k++){
+      const t=.22+k*.16,x=x1+(x2-x1)*t,y=y1+(y2-y1)*t-10;
+      const a=el('path',{d:'M-9 -9 L9 0 L-9 9 L-4 0Z',class:'arrow '+(near?'near':'far'),transform:'translate('+x+' '+y+') rotate('+ang+')'},g);
+      if(near)a.style.animationDelay=(k*.2)+'s';
+    }
+  }
+}
+function placeGirl(x,y,squash){
+  gx=x;gy=y;
+  girl.setAttribute('transform','translate('+x+' '+y+')'+(squash?' scale('+(1+squash)+' '+(1-squash)+')':''));
+}
+function showRing(){
+  if(at>=STONES.length-1){ring.style.display='none';return}
+  const [x,y]=STONES[at+1];ring.style.display='';ring.setAttribute('cx',x);ring.setAttribute('cy',y);
+}
+function refresh(){drawStones();drawArrows();showRing()}
+
+/* ---------- moving her ---------- */
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+function hop(onDone){
+  const id=roundId,[x1,y1]=[gx,gy],[x2,y2]=STONES[at+1],dur=360,h=46;
+  busy=true;sfx.hop(at);
+  const t0=performance.now();
+  (function f(now){
+    if(id!==roundId)return;
+    const t=Math.min(1,(now-t0)/dur),e=ease(t);
+    placeGirl(x1+(x2-x1)*e,y1+(y2-y1)*e-h*Math.sin(Math.PI*t));
+    if(t<1)return requestAnimationFrame(f);
+    at++;
+    /* a little squash when she lands */
+    placeGirl(x2,y2,.12);setTimeout(()=>{if(id===roundId)placeGirl(x2,y2)},90);
+    refresh();busy=false;onDone&&onDone();
+  })(t0);
+}
+/* while a finger holds her, hop to the next stone each time the finger reaches it (and keep going if it is already further on) */
+function chase(){
+  if(busy||!finger||at>=STONES.length-1)return;
+  const [nx,ny]=STONES[at+1];
+  if(Math.hypot(finger.x-nx,finger.y-ny)<REACH){
+    hop(()=>{
+      if(at>=STONES.length-1){reachedTop();return}
+      chase();
+    });
+  }
+}
+function toPic(e){
+  const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;
+  const m=svg.getScreenCTM();if(!m)return {x:0,y:0};
+  const q=p.matrixTransform(m.inverse());return {x:q.x,y:q.y};
+}
+svg.addEventListener('pointerdown',e=>{
+  if(current!=='play'||at>=STONES.length-1||dragId!==null)return;
+  const p=toPic(e);
+  /* her body is above her feet, so measure to the middle of her */
+  if(Math.hypot(p.x-gx,p.y-(gy-55))>GRAB)return;
+  e.preventDefault();audio();
+  dragId=e.pointerId;finger=p;girl.classList.add('held');sfx.grab();
+  try{svg.setPointerCapture(e.pointerId)}catch(_){}
+  clearIdle();stopSpeech();
+});
+svg.addEventListener('pointermove',e=>{
+  if(e.pointerId!==dragId)return;
+  finger=toPic(e);chase();
+});
+function letGo(e){
+  if(e.pointerId!==dragId)return;
+  dragId=null;finger=null;girl.classList.remove('held');
+  if(current==='play'&&at<STONES.length-1)armIdle();
+}
+svg.addEventListener('pointerup',letGo);
+svg.addEventListener('pointercancel',letGo);
+
+/* at the top: say the line, then slide down the long slide, then celebrate */
+function reachedTop(){
+  const id=roundId;
+  dragId=null;finger=null;girl.classList.remove('held');busy=true;clearIdle();
+  say(SAY_TOP,()=>{if(id===roundId)slideDown()});
+}
+function slideDown(){
+  const id=roundId,path=$('slidePath'),len=path.getTotalLength(),dur=2200,t0=performance.now();
+  sfx.slide();
+  (function f(now){
+    if(id!==roundId)return;
+    const t=Math.min(1,(now-t0)/dur),e=t*t*(1.6-.6*t); /* speeds up as she goes down */
+    const pt=path.getPointAtLength(Math.min(1,e)*len);
+    placeGirl(pt.x,pt.y);
+    if(t<1)return requestAnimationFrame(f);
+    win();
+  })(t0);
+}
+function win(){
+  const id=roundId;
+  sfx.win();fireworks();$('cheer').hidden=false;
+  /* next round only after BOTH the praise has finished speaking and WIN_MS has passed */
+  let spoken=false,timeUp=false;
+  const next=()=>{if(id===roundId&&spoken&&timeUp)newRound()};
+  setTimeout(()=>{timeUp=true;next()},WIN_MS);
+  setTimeout(()=>say(SAY_WIN,()=>{spoken=true;next()}),500);
+}
+function newRound(){
+  roundId++;stopFx();$('cheer').hidden=true;
+  at=0;busy=false;dragId=null;finger=null;girl.classList.remove('held');
+  placeGirl(STONES[0][0],STONES[0][1]);refresh();
+  say(SAY_START,armIdle);
+}
+
+/* ---------- idle reminder ---------- */
+function clearIdle(){clearTimeout(idleTimer)}
+function armIdle(){
+  clearIdle();
+  idleTimer=setTimeout(()=>{if(current==='play'&&!busy&&dragId===null)say(SAY_HINT,armIdle)},IDLE_MS);
+}
+
+/* ---------- screens ---------- */
+function show(name){current=name;['home','play'].forEach(s=>$(s).hidden=s!==name)}
+$('testBtn').onclick=()=>{audio();sfx.hop(4);setTimeout(()=>say('你好！'+SAY_WIN),400)};
+$('startBtn').onclick=()=>{
+  audio();show('play');
+  if('wakeLock' in navigator)navigator.wakeLock.request('screen').then(l=>wakeLock=l).catch(()=>{});
+  newRound();
+};
+$('listenBtn').onclick=()=>{if(busy)return;clearIdle();say(SAY_START,armIdle)};
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearIdle();stopSpeech()}else if(current==='play'&&!busy)armIdle()});
+
+function endGame(){
+  roundId++;clearIdle();stopSpeech();stopFx();$('cheer').hidden=true;
+  if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null}
+  dragId=null;finger=null;busy=false;
+  show('home');
+}
+/* hold to exit, so a stray tap doesn't end the game */
+(function(){
+  const b=$('holdBtn');let t=null;
+  const startHold=e=>{e.preventDefault();b.classList.add('go');t=setTimeout(()=>{b.classList.remove('go');endGame()},1500)};
+  const cancel=()=>{clearTimeout(t);b.classList.remove('go')};
+  b.addEventListener('pointerdown',startHold);
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,cancel));
+  b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')endGame()});
+})();
+
+/* ---------- fireworks ---------- */
+const fxc=$('fx'),fxg=fxc.getContext('2d');
+let parts=[],raf=0,fxEnd=0;
+const COLORS=['#FFC93C','#1E9A53','#2F6BFF','#D2433F','#8E44EC','#FF8A1F'];
+const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function burst(){
+  const w=fxc.width,h=fxc.height,x=w*(.15+Math.random()*.7),y=h*(.12+Math.random()*.4);
+  const col=COLORS[Math.floor(Math.random()*COLORS.length)],n=reduced?24:70,dpr=window.devicePixelRatio||1;
+  for(let i=0;i<n;i++){
+    const a=Math.PI*2*i/n,sp=(2+Math.random()*4.5)*dpr;
+    parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,col,r:(2.5+Math.random()*2.5)*dpr});
+  }
+  sfx.pop();
+}
+function fireworks(){
+  const dpr=window.devicePixelRatio||1;
+  fxc.width=innerWidth*dpr;fxc.height=innerHeight*dpr;fxc.hidden=false;
+  parts=[];fxEnd=performance.now()+3600;
+  const count=reduced?2:6;
+  for(let i=0;i<count;i++)setTimeout(burst,i*380);
+  cancelAnimationFrame(raf);raf=requestAnimationFrame(step);
+}
+function step(now){
+  fxg.clearRect(0,0,fxc.width,fxc.height);
+  const g=.07*(window.devicePixelRatio||1);
+  parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=g;p.vx*=.985;p.life-=.012;
+    if(p.life>0){fxg.globalAlpha=p.life;fxg.fillStyle=p.col;fxg.beginPath();fxg.arc(p.x,p.y,p.r,0,7);fxg.fill()}});
+  fxg.globalAlpha=1;
+  parts=parts.filter(p=>p.life>0);
+  if(now<fxEnd||parts.length)raf=requestAnimationFrame(step);else stopFx();
+}
+function stopFx(){cancelAnimationFrame(raf);parts=[];fxg.clearRect(0,0,fxc.width,fxc.height);fxc.hidden=true}
+
+placeGirl(gx,gy);refresh();
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+</script>
+</body>
+</html>
